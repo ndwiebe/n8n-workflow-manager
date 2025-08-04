@@ -125,7 +125,6 @@ Edit the theme configuration in `src/App.tsx` to match your brand colors.
 - Detailed analytics dashboard
 - Webhook integration
 - Custom workflow builder
-
 ## License
 
 MIT
