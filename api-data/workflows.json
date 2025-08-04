@@ -1,0 +1,144 @@
+{
+  "workflows": [
+    {
+      "id": "invoice-processor",
+      "name": "Invoice Processing Automation",
+      "description": "Automatically extract data from invoices, validate amounts, and sync with your accounting software.",
+      "category": "Finance",
+      "icon": "Receipt",
+      "requiredCredentials": [
+        {
+          "name": "ocrApiKey",
+          "label": "OCR API Key",
+          "type": "password",
+          "required": true,
+          "placeholder": "Enter your OCR service API key",
+          "helpText": "Get your API key from your OCR provider dashboard"
+        },
+        {
+          "name": "accountingSoftware",
+          "label": "Accounting Software",
+          "type": "select",
+          "required": true,
+          "options": [
+            { "value": "quickbooks", "label": "QuickBooks" },
+            { "value": "xero", "label": "Xero" },
+            { "value": "sage", "label": "Sage" }
+          ]
+        },
+        {
+          "name": "accountingApiKey",
+          "label": "Accounting API Key",
+          "type": "password",
+          "required": true
+        }
+      ],
+      "externalTools": ["OCR Service", "QuickBooks/Xero/Sage API", "Email Parser"],
+      "features": [
+        "Automatic invoice data extraction",
+        "Multi-currency support",
+        "Duplicate detection",
+        "Approval workflow integration"
+      ],
+      "estimatedSetupTime": "5-7 days",
+      "monthlyPrice": 99,
+      "active": true
+    },
+    {
+      "id": "email-automation",
+      "name": "Email Campaign Automation",
+      "description": "Create sophisticated email campaigns with behavioral triggers, A/B testing, and analytics.",
+      "category": "Marketing",
+      "icon": "Email",
+      "requiredCredentials": [
+        {
+          "name": "smtpHost",
+          "label": "SMTP Host",
+          "type": "text",
+          "required": true,
+          "placeholder": "smtp.example.com"
+        },
+        {
+          "name": "smtpPort",
+          "label": "SMTP Port",
+          "type": "text",
+          "required": true,
+          "placeholder": "587"
+        },
+        {
+          "name": "smtpUser",
+          "label": "SMTP Username",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "smtpPassword",
+          "label": "SMTP Password",
+          "type": "password",
+          "required": true
+        }
+      ],
+      "externalTools": ["SMTP Server", "Google Analytics", "Mailchimp API"],
+      "features": [
+        "Behavioral email triggers",
+        "A/B testing capabilities",
+        "Advanced segmentation",
+        "Real-time analytics",
+        "Template designer"
+      ],
+      "estimatedSetupTime": "3-5 days",
+      "monthlyPrice": 149,
+      "active": true
+    },
+    {
+      "id": "slack-integration",
+      "name": "Slack Workspace Automation",
+      "description": "Automate Slack notifications, channel management, and team communications with smart triggers and responses.",
+      "category": "Communication",
+      "icon": "Chat",
+      "requiredCredentials": [
+        {
+          "name": "slackBotToken",
+          "label": "Slack Bot Token",
+          "type": "password",
+          "required": true,
+          "placeholder": "xoxb-your-bot-token",
+          "helpText": "Create a Slack app and get the bot token from OAuth & Permissions"
+        },
+        {
+          "name": "slackAppToken",
+          "label": "Slack App Token",
+          "type": "password",
+          "required": true,
+          "placeholder": "xapp-your-app-token",
+          "helpText": "Socket Mode app token for real-time events"
+        },
+        {
+          "name": "webhookUrl",
+          "label": "Incoming Webhook URL",
+          "type": "url",
+          "required": false,
+          "placeholder": "https://hooks.slack.com/services/...",
+          "helpText": "Optional: For simple message posting"
+        }
+      ],
+      "externalTools": ["Slack API", "Slack Events API", "Slack Web API"],
+      "features": [
+        "Automated channel notifications",
+        "Smart message routing",
+        "Team presence monitoring",
+        "Custom slash commands",
+        "File sharing automation",
+        "Meeting scheduler integration"
+      ],
+      "estimatedSetupTime": "1-2 days",
+      "monthlyPrice": 59,
+      "active": true
+    }
+  ],
+  "meta": {
+    "total": 3,
+    "lastUpdated": "2024-07-15T10:00:00Z",
+    "version": "1.0.0"
+  }
+}

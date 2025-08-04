@@ -1,0 +1,111 @@
+{
+  "id": "slack-digest",
+  "name": "Slack Daily Digest",
+  "description": "Automatically summarizes Slack messages from selected channels and emails you a daily digest with key highlights, mentions, and important updates.",
+  "category": "Communication",
+  "icon": "Chat",
+  "version": "1.0.0",
+  "author": "n8n Workflow Manager",
+  "tags": ["slack", "digest", "email", "automation"],
+  "difficulty": "beginner",
+  "estimatedSetupTime": "10-15 minutes",
+  "monthlyPrice": 29,
+  "fields": [
+    {
+      "key": "slack_token",
+      "name": "slack_token",
+      "label": "Slack Bot Token",
+      "type": "password",
+      "required": true,
+      "placeholder": "xoxb-your-slack-bot-token",
+      "helpText": "Create a Slack app and get the bot token from OAuth & Permissions. Required scopes: channels:read, users:read, chat:read",
+      "validation": {
+        "pattern": "^xoxb-[0-9]+-[0-9]+-[a-zA-Z0-9]+$",
+        "message": "Invalid Slack bot token format"
+      }
+    },
+    {
+      "key": "email",
+      "name": "email",
+      "label": "Email Address",
+      "type": "email",
+      "required": true,
+      "placeholder": "your-email@example.com",
+      "helpText": "The email address where the daily digest will be sent",
+      "validation": {
+        "pattern": "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$",
+        "message": "Please enter a valid email address"
+      }
+    },
+    {
+      "key": "channels",
+      "name": "channels",
+      "label": "Slack Channels",
+      "type": "text",
+      "required": true,
+      "placeholder": "general,random,dev-team",
+      "helpText": "Comma-separated list of channel names to monitor (without #)",
+      "validation": {
+        "pattern": "^[a-zA-Z0-9_,-]+$",
+        "message": "Channel names should only contain letters, numbers, underscores, and commas"
+      }
+    },
+    {
+      "key": "digest_time",
+      "name": "digest_time",
+      "label": "Digest Time",
+      "type": "select",
+      "required": true,
+      "options": [
+        { "value": "09:00", "label": "9:00 AM" },
+        { "value": "17:00", "label": "5:00 PM" },
+        { "value": "20:00", "label": "8:00 PM" }
+      ],
+      "helpText": "Time of day when the digest should be sent (in your local timezone)"
+    },
+    {
+      "key": "timezone",
+      "name": "timezone",
+      "label": "Timezone",
+      "type": "select",
+      "required": true,
+      "options": [
+        { "value": "America/New_York", "label": "Eastern Time (EST/EDT)" },
+        { "value": "America/Chicago", "label": "Central Time (CST/CDT)" },
+        { "value": "America/Denver", "label": "Mountain Time (MST/MDT)" },
+        { "value": "America/Los_Angeles", "label": "Pacific Time (PST/PDT)" },
+        { "value": "UTC", "label": "UTC" }
+      ],
+      "helpText": "Your local timezone for scheduling the digest"
+    }
+  ],
+  "externalTools": [
+    "Slack Web API",
+    "Gmail/SMTP Server",
+    "OpenAI API (for summarization)"
+  ],
+  "features": [
+    "Daily automated digest generation",
+    "Smart message summarization",
+    "Mention and thread tracking",
+    "Customizable channel selection",
+    "Timezone-aware scheduling",
+    "Email formatting with highlights"
+  ],
+  "requirements": {
+    "slack": {
+      "type": "bot_token",
+      "scopes": ["channels:read", "users:read", "chat:read"]
+    },
+    "email": {
+      "type": "smtp_access",
+      "required": true
+    }
+  },
+  "provisioning": {
+    "type": "n8n_workflow",
+    "template": "slack-digest-template.json",
+    "estimatedProvisionTime": "5-10 minutes",
+    "dependencies": ["slack-node", "email-node", "schedule-node"]
+  }
+}

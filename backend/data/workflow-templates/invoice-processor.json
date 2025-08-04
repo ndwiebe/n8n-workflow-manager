@@ -1,0 +1,146 @@
+{
+  "id": "invoice-processor",
+  "name": "Invoice Processing Automation",
+  "description": "Automatically extract data from invoices, validate amounts, and sync with your accounting software. Supports multiple formats and currencies.",
+  "category": "Finance",
+  "icon": "Receipt",
+  "version": "1.2.0",
+  "author": "n8n Workflow Manager",
+  "tags": ["invoice", "accounting", "ocr", "automation", "finance"],
+  "difficulty": "intermediate",
+  "estimatedSetupTime": "20-30 minutes",
+  "monthlyPrice": 99,
+  "fields": [
+    {
+      "key": "ocr_api_key",
+      "name": "ocrApiKey",
+      "label": "OCR API Key",
+      "type": "password",
+      "required": true,
+      "placeholder": "Enter your OCR service API key",
+      "helpText": "Get your API key from your OCR provider dashboard (supports Google Cloud Vision, AWS Textract, or Azure Cognitive Services)",
+      "validation": {
+        "minLength": 10,
+        "message": "API key must be at least 10 characters long"
+      }
+    },
+    {
+      "key": "accounting_software",
+      "name": "accountingSoftware",
+      "label": "Accounting Software",
+      "type": "select",
+      "required": true,
+      "options": [
+        { "value": "quickbooks", "label": "QuickBooks Online" },
+        { "value": "xero", "label": "Xero" },
+        { "value": "sage", "label": "Sage Business Cloud" },
+        { "value": "freshbooks", "label": "FreshBooks" }
+      ],
+      "helpText": "Select your accounting software for automatic data sync"
+    },
+    {
+      "key": "accounting_api_key",
+      "name": "accountingApiKey",
+      "label": "Accounting API Key",
+      "type": "password",
+      "required": true,
+      "placeholder": "Enter your accounting software API key",
+      "helpText": "API key or OAuth token for your accounting software",
+      "validation": {
+        "minLength": 10,
+        "message": "API key must be at least 10 characters long"
+      }
+    },
+    {
+      "key": "input_email",
+      "name": "inputEmail",
+      "label": "Invoice Email Address",
+      "type": "email",
+      "required": true,
+      "placeholder": "invoices@yourcompany.com",
+      "helpText": "Email address where invoices will be sent for processing",
+      "validation": {
+        "pattern": "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$",
+        "message": "Please enter a valid email address"
+      }
+    },
+    {
+      "key": "approval_threshold",
+      "name": "approvalThreshold",
+      "label": "Approval Threshold",
+      "type": "number",
+      "required": false,
+      "placeholder": "1000",
+      "helpText": "Invoices above this amount (in USD) will require manual approval",
+      "validation": {
+        "min": 0,
+        "max": 100000,
+        "message": "Threshold must be between 0 and 100,000"
+      }
+    },
+    {
+      "key": "notification_email",
+      "name": "notificationEmail",
+      "label": "Notification Email",
+      "type": "email",
+      "required": false,
+      "placeholder": "finance@yourcompany.com",
+      "helpText": "Email address for processing notifications and approvals",
+      "validation": {
+        "pattern": "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$",
+        "message": "Please enter a valid email address"
+      }
+    },
+    {
+      "key": "currency",
+      "name": "currency",
+      "label": "Default Currency",
+      "type": "select",
+      "required": true,
+      "options": [
+        { "value": "USD", "label": "US Dollar (USD)" },
+        { "value": "EUR", "label": "Euro (EUR)" },
+        { "value": "GBP", "label": "British Pound (GBP)" },
+        { "value": "CAD", "label": "Canadian Dollar (CAD)" },
+        { "value": "AUD", "label": "Australian Dollar (AUD)" }
+      ],
+      "helpText": "Default currency for invoice processing"
+    }
+  ],
+  "externalTools": [
+    "OCR Service (Google Cloud Vision, AWS Textract, Azure Cognitive Services)",
+    "QuickBooks/Xero/Sage API",
+    "Email Parser",
+    "Currency Conversion API"
+  ],
+  "features": [
+    "Automatic invoice data extraction",
+    "Multi-currency support",
+    "Duplicate invoice detection",
+    "Approval workflow integration",
+    "Real-time accounting sync",
+    "Error handling and notifications",
+    "Audit trail tracking",
+    "Batch processing support"
+  ],
+  "requirements": {
+    "ocr": {
+      "type": "api_key",
+      "providers": ["google_cloud_vision", "aws_textract", "azure_cognitive_services"]
+    },
+    "accounting": {
+      "type": "api_access",
+      "providers": ["quickbooks", "xero", "sage", "freshbooks"]
+    },
+    "email": {
+      "type": "imap_access",
+      "required": true
+    }
+  },
+  "provisioning": {
+    "type": "n8n_workflow",
+    "template": "invoice-processor-template.json",
+    "estimatedProvisionTime": "10-15 minutes",
+    "dependencies": ["ocr-node", "accounting-node", "email-node", "webhook-node"]
+  }
+}

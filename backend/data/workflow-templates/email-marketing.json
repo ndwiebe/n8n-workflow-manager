@@ -1,0 +1,182 @@
+{
+  "id": "email-marketing",
+  "name": "Email Marketing Automation",
+  "description": "Create sophisticated email campaigns with behavioral triggers, A/B testing, and detailed analytics. Perfect for nurturing leads and customer engagement.",
+  "category": "Marketing",
+  "icon": "Email",
+  "version": "2.1.0",
+  "author": "n8n Workflow Manager",
+  "tags": ["email", "marketing", "automation", "campaigns", "analytics"],
+  "difficulty": "advanced",
+  "estimatedSetupTime": "30-45 minutes",
+  "monthlyPrice": 149,
+  "fields": [
+    {
+      "key": "smtp_host",
+      "name": "smtpHost",
+      "label": "SMTP Host",
+      "type": "text",
+      "required": true,
+      "placeholder": "smtp.gmail.com",
+      "helpText": "SMTP server hostname for sending emails",
+      "validation": {
+        "pattern": "^[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$",
+        "message": "Please enter a valid hostname"
+      }
+    },
+    {
+      "key": "smtp_port",
+      "name": "smtpPort",
+      "label": "SMTP Port",
+      "type": "number",
+      "required": true,
+      "placeholder": "587",
+      "helpText": "SMTP port number (typically 587 for TLS or 465 for SSL)",
+      "validation": {
+        "min": 1,
+        "max": 65535,
+        "message": "Port must be between 1 and 65535"
+      }
+    },
+    {
+      "key": "smtp_user",
+      "name": "smtpUser",
+      "label": "SMTP Username",
+      "type": "text",
+      "required": true,
+      "placeholder": "your-email@example.com",
+      "helpText": "Username for SMTP authentication",
+      "validation": {
+        "minLength": 3,
+        "message": "Username must be at least 3 characters long"
+      }
+    },
+    {
+      "key": "smtp_password",
+      "name": "smtpPassword",
+      "label": "SMTP Password",
+      "type": "password",
+      "required": true,
+      "placeholder": "Enter your SMTP password",
+      "helpText": "Password or app password for SMTP authentication",
+      "validation": {
+        "minLength": 6,
+        "message": "Password must be at least 6 characters long"
+      }
+    },
+    {
+      "key": "from_email",
+      "name": "fromEmail",
+      "label": "From Email Address",
+      "type": "email",
+      "required": true,
+      "placeholder": "noreply@yourcompany.com",
+      "helpText": "Email address that will appear as the sender",
+      "validation": {
+        "pattern": "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$",
+        "message": "Please enter a valid email address"
+      }
+    },
+    {
+      "key": "from_name",
+      "name": "fromName",
+      "label": "From Name",
+      "type": "text",
+      "required": true,
+      "placeholder": "Your Company",
+      "helpText": "Name that will appear as the sender",
+      "validation": {
+        "minLength": 2,
+        "maxLength": 50,
+        "message": "Name must be between 2 and 50 characters"
+      }
+    },
+    {
+      "key": "analytics_webhook",
+      "name": "analyticsWebhook",
+      "label": "Analytics Webhook URL",
+      "type": "url",
+      "required": false,
+      "placeholder": "https://your-analytics.com/webhook",
+      "helpText": "Optional webhook URL for custom analytics tracking",
+      "validation": {
+        "pattern": "^https?://.+",
+        "message": "Please enter a valid URL starting with http:// or https://"
+      }
+    },
+    {
+      "key": "segment_api_key",
+      "name": "segmentApiKey",
+      "label": "Segment API Key",
+      "type": "password",
+      "required": false,
+      "placeholder": "Enter your Segment API key",
+      "helpText": "Optional: Segment API key for advanced audience segmentation",
+      "validation": {
+        "minLength": 10,
+        "message": "API key must be at least 10 characters long"
+      }
+    },
+    {
+      "key": "campaign_frequency",
+      "name": "campaignFrequency",
+      "label": "Campaign Frequency",
+      "type": "select",
+      "required": true,
+      "options": [
+        { "value": "daily", "label": "Daily" },
+        { "value": "weekly", "label": "Weekly" },
+        { "value": "monthly", "label": "Monthly" },
+        { "value": "triggered", "label": "Triggered Only" }
+      ],
+      "helpText": "How often automated campaigns should run"
+    },
+    {
+      "key": "ab_testing",
+      "name": "abTesting",
+      "label": "Enable A/B Testing",
+      "type": "checkbox",
+      "required": false,
+      "helpText": "Enable A/B testing for subject lines and content"
+    }
+  ],
+  "externalTools": [
+    "SMTP Server",
+    "Google Analytics",
+    "Segment API",
+    "Mailchimp API",
+    "Webhook Services"
+  ],
+  "features": [
+    "Behavioral email triggers",
+    "A/B testing capabilities",
+    "Advanced audience segmentation",
+    "Real-time analytics dashboard",
+    "Template designer",
+    "Automated drip campaigns",
+    "Bounce and unsubscribe handling",
+    "Custom webhook integrations",
+    "Performance optimization",
+    "Compliance (GDPR, CAN-SPAM)"
+  ],
+  "requirements": {
+    "smtp": {
+      "type": "server_access",
+      "required": true
+    },
+    "analytics": {
+      "type": "tracking_service",
+      "providers": ["google_analytics", "segment", "custom_webhook"]
+    },
+    "storage": {
+      "type": "database",
+      "purpose": "subscriber_management"
+    }
+  },
+  "provisioning": {
+    "type": "n8n_workflow",
+    "template": "email-marketing-template.json",
+    "estimatedProvisionTime": "15-20 minutes",
+    "dependencies": ["smtp-node", "analytics-node", "database-node", "webhook-node", "schedule-node"]
+  }
+}
