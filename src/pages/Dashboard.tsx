@@ -11,15 +11,23 @@ import {
   ToggleButton,
   Paper,
   Skeleton,
-  Alert
+  Alert,
+  Card,
+  CardContent
 } from '@mui/material';
 import {
   Search as SearchIcon,
   ViewModule as ViewModuleIcon,
-  ViewList as ViewListIcon
+  ViewList as ViewListIcon,
+  TrendingUp as TrendingUpIcon,
+  Schedule as ScheduleIcon,
+  MonetizationOn as MonetizationOnIcon,
+  Speed as SpeedIcon
 } from '@mui/icons-material';
 import { WorkflowCard } from '../components/workflows/WorkflowCard';
 import { ConfigurationModal } from '../components/workflows/ConfigurationModal';
+import { BusinessMetricsDashboard } from '../components/metrics/BusinessMetricsDashboard';
+import { ROICalculator } from '../components/metrics/ROICalculator';
 import { useWorkflowStore } from '../store/workflowStore';
 import { useAuthStore } from '../store/authStore';
 import { WorkflowModule } from '../types';
@@ -64,6 +72,11 @@ export const Dashboard: React.FC = () => {
     });
   }, [modules, searchTerm, selectedCategory]);
 
+  // Calculate business metrics
+  const activeAutomations = configurations.filter(c => c.status === 'active').length;
+  const totalAutomations = configurations.length;
+  const automationRate = totalAutomations > 0 ? Math.round((activeAutomations / totalAutomations) * 100) : 0;
+
   const handleToggleWorkflow = async (module: WorkflowModule, enabled: boolean) => {
     const config = configurations.find(c => c.workflowId === module.id);
     if (config) {
@@ -93,22 +106,96 @@ export const Dashboard: React.FC = () => {
   };
 
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
+    <Container maxWidth="lg" sx={{ py: { xs: 2, md: 4 } }}>
+      {/* Business-focused header */}
       <Box mb={4}>
-        <Typography variant="h4" component="h1" gutterBottom>
-          Workflow Dashboard
+        <Typography variant="h4" component="h1" gutterBottom sx={{ fontWeight: 600 }}>
+          Business Automation Hub
         </Typography>
-        <Typography variant="body1" color="text.secondary">
-          Welcome back, {user?.name}! Manage your n8n workflow integrations below.
+        <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>
+          Welcome back, {user?.name}! Streamline your business operations and unlock productivity gains with smart automation.
+        </Typography>
+        <Typography variant="body2" color="primary" sx={{ fontWeight: 500 }}>
+          Transform repetitive tasks into automated workflows and watch your ROI grow.
         </Typography>
       </Box>
 
+      {/* Business Metrics Overview */}
+      <Grid container spacing={3} sx={{ mb: 4 }}>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ textAlign: 'center', p: 2 }}>
+            <CardContent sx={{ pb: '16px !important' }}>
+              <SpeedIcon color="primary" sx={{ fontSize: 40, mb: 1 }} />
+              <Typography variant="h4" color="primary" sx={{ fontWeight: 600 }}>
+                {activeAutomations}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Active Automations
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ textAlign: 'center', p: 2 }}>
+            <CardContent sx={{ pb: '16px !important' }}>
+              <TrendingUpIcon color="success" sx={{ fontSize: 40, mb: 1 }} />
+              <Typography variant="h4" color="success.main" sx={{ fontWeight: 600 }}>
+                {automationRate}%
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Automation Rate
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ textAlign: 'center', p: 2 }}>
+            <CardContent sx={{ pb: '16px !important' }}>
+              <ScheduleIcon color="info" sx={{ fontSize: 40, mb: 1 }} />
+              <Typography variant="h4" color="info.main" sx={{ fontWeight: 600 }}>
+                24/7
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Always Working
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ textAlign: 'center', p: 2 }}>
+            <CardContent sx={{ pb: '16px !important' }}>
+              <MonetizationOnIcon color="warning" sx={{ fontSize: 40, mb: 1 }} />
+              <Typography variant="h4" color="warning.main" sx={{ fontWeight: 600 }}>
+                ROI
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Tracking Available
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
+
+      {/* Business Metrics Dashboard */}
+      <Box sx={{ mb: 4 }}>
+        <BusinessMetricsDashboard configurations={configurations} />
+      </Box>
+
+      {/* ROI Calculator */}
+      <Box sx={{ mb: 4 }}>
+        <ROICalculator />
+      </Box>
+
+      {/* Search and Filter Controls */}
       <Paper elevation={1} sx={{ p: { xs: 2, md: 3 }, mb: 4 }}>
         <Grid container spacing={2} alignItems="center">
           <Grid item xs={12} md={6}>
             <TextField
               fullWidth
-              placeholder="Search workflows..."
+              placeholder="Find business automation solutions..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               InputProps={{
@@ -124,7 +211,7 @@ export const Dashboard: React.FC = () => {
           <Grid item xs={12} md={4}>
             <Box display="flex" gap={1} flexWrap="wrap" sx={{ mb: { xs: 1, md: 0 } }}>
               <Chip
-                label="All"
+                label="All Solutions"
                 onClick={() => setSelectedCategory(null)}
                 color={!selectedCategory ? 'primary' : 'default'}
                 size="small"
@@ -147,6 +234,7 @@ export const Dashboard: React.FC = () => {
               exclusive
               onChange={(_, value) => value && setViewMode(value)}
               fullWidth
+              size="small"
             >
               <ToggleButton value="grid">
                 <ViewModuleIcon />
@@ -159,17 +247,18 @@ export const Dashboard: React.FC = () => {
         </Grid>
       </Paper>
 
+      {/* Automation Solutions Grid */}
       {loading ? (
         <Grid container spacing={3}>
           {[1, 2, 3, 4].map(i => (
             <Grid item xs={12} md={viewMode === 'grid' ? 6 : 12} key={i}>
-              <Skeleton variant="rectangular" height={200} />
+              <Skeleton variant="rectangular" height={200} sx={{ borderRadius: 2 }} />
             </Grid>
           ))}
         </Grid>
       ) : filteredModules.length === 0 ? (
-        <Alert severity="info">
-          No workflows found matching your criteria.
+        <Alert severity="info" sx={{ borderRadius: 2 }}>
+          No automation solutions found matching your criteria. Try adjusting your search or category filter.
         </Alert>
       ) : (
         <Grid container spacing={3}>
@@ -189,6 +278,7 @@ export const Dashboard: React.FC = () => {
         </Grid>
       )}
 
+      {/* Configuration Modal */}
       {selectedModule && (
         <ConfigurationModal
           open={configModalOpen}
