@@ -9,6 +9,8 @@ export interface N8nWorkflow {
   connections: any;
   createdAt: string;
   updatedAt: string;
+  tags?: string[];
+  settings?: any;
 }
 
 export interface N8nExecution {
@@ -19,6 +21,7 @@ export interface N8nExecution {
   startedAt: string;
   finishedAt?: string;
   data?: any;
+  executionTime?: number;
 }
 
 export interface N8nCredential {
@@ -26,6 +29,35 @@ export interface N8nCredential {
   name: string;
   type: string;
   data: Record<string, any>;
+}
+
+export interface WorkflowStats {
+  totalExecutions: number;
+  successfulExecutions: number;
+  failedExecutions: number;
+  averageExecutionTime: number;
+  lastExecution?: string;
+  executionsThisMonth: number;
+  executionsToday: number;
+  uptimePercentage: number;
+}
+
+export interface BusinessWorkflowDeployment {
+  workflowId: string;
+  deploymentId: string;
+  status: 'deploying' | 'active' | 'inactive' | 'failed';
+  businessConfig: {
+    category: string;
+    expectedMonthlySavings: number;
+    targetUsers: string[];
+    department: string;
+  };
+  monitoring: {
+    alertsEnabled: boolean;
+    costThreshold: number;
+    performanceThreshold: number;
+  };
+  deployedAt: string;
 }
 
 export class N8nService {
@@ -100,12 +132,31 @@ export class N8nService {
   }
 
   /**
-   * Get all workflows
+   * Get all workflows with optional business filtering
    */
-  async getWorkflows(): Promise<N8nWorkflow[]> {
+  async getWorkflows(businessFilter?: {
+    category?: string;
+    active?: boolean;
+    tags?: string[];
+  }): Promise<N8nWorkflow[]> {
     try {
       const response = await this.client.get('/workflows');
-      return response.data.data || [];
+      let workflows = response.data.data || [];
+
+      // Apply business filters
+      if (businessFilter) {
+        if (businessFilter.active !== undefined) {
+          workflows = workflows.filter((w: N8nWorkflow) => w.active === businessFilter.active);
+        }
+        
+        if (businessFilter.tags && businessFilter.tags.length > 0) {
+          workflows = workflows.filter((w: N8nWorkflow) => 
+            w.tags && businessFilter.tags!.some(tag => w.tags!.includes(tag))
+          );
+        }
+      }
+
+      return workflows;
     } catch (error) {
       logger.error('Failed to fetch workflows:', error);
       throw new Error('Failed to fetch workflows from n8n');
@@ -129,12 +180,21 @@ export class N8nService {
   }
 
   /**
-   * Create a new workflow
+   * Create a new workflow with business configuration
    */
-  async createWorkflow(workflowData: Partial<N8nWorkflow>): Promise<N8nWorkflow> {
+  async createWorkflow(workflowData: Partial<N8nWorkflow>, businessTags?: string[]): Promise<N8nWorkflow> {
     try {
+      // Add business tags to workflow
+      if (businessTags && businessTags.length > 0) {
+        workflowData.tags = [...(workflowData.tags || []), ...businessTags];
+      }
+
       const response = await this.client.post('/workflows', workflowData);
-      logger.info('Workflow created successfully:', { id: response.data.data.id });
+      logger.info('Workflow created successfully:', { 
+        id: response.data.data.id,
+        name: response.data.data.name,
+        businessTags 
+      });
       return response.data.data;
     } catch (error) {
       logger.error('Failed to create workflow:', error);
@@ -170,11 +230,24 @@ export class N8nService {
   }
 
   /**
-   * Activate a workflow
+   * Activate a workflow with business monitoring
    */
-  async activateWorkflow(id: string): Promise<void> {
+  async activateWorkflow(id: string, businessConfig?: {
+    alertsEnabled?: boolean;
+    costThreshold?: number;
+    performanceThreshold?: number;
+  }): Promise<void> {
     try {
       await this.client.post(`/workflows/${id}/activate`);
+      
+      // Log business configuration if provided
+      if (businessConfig) {
+        logger.info('Workflow activated with business monitoring:', { 
+          id, 
+          businessConfig 
+        });
+      }
+      
       logger.info('Workflow activated successfully:', { id });
     } catch (error) {
       logger.error(`Failed to activate workflow ${id}:`, error);
@@ -196,11 +269,25 @@ export class N8nService {
   }
 
   /**
-   * Execute a workflow manually
+   * Execute a workflow manually with business tracking
    */
-  async executeWorkflow(id: string, data?: any): Promise<N8nExecution> {
+  async executeWorkflow(id: string, data?: any, businessContext?: {
+    triggeredBy?: string;
+    department?: string;
+    costCenter?: string;
+  }): Promise<N8nExecution> {
     try {
       const response = await this.client.post(`/workflows/${id}/execute`, { data });
+      
+      // Log business context if provided
+      if (businessContext) {
+        logger.info('Workflow executed with business context:', { 
+          id, 
+          executionId: response.data.data.id,
+          businessContext 
+        });
+      }
+      
       logger.info('Workflow executed successfully:', { id, executionId: response.data.data.id });
       return response.data.data;
     } catch (error) {
@@ -210,9 +297,17 @@ export class N8nService {
   }
 
   /**
-   * Get workflow executions
+   * Get workflow executions with business filtering
    */
-  async getExecutions(workflowId?: string, limit = 20): Promise<N8nExecution[]> {
+  async getExecutions(
+    workflowId?: string, 
+    limit = 20,
+    businessFilter?: {
+      startDate?: string;
+      endDate?: string;
+      status?: 'success' | 'error' | 'running' | 'waiting';
+    }
+  ): Promise<N8nExecution[]> {
     try {
       const params = new URLSearchParams({
         limit: limit.toString(),
@@ -220,7 +315,30 @@ export class N8nService {
       });
       
       const response = await this.client.get(`/executions?${params}`);
-      return response.data.data || [];
+      let executions = response.data.data || [];
+
+      // Apply business filters
+      if (businessFilter) {
+        if (businessFilter.status) {
+          executions = executions.filter((e: N8nExecution) => e.status === businessFilter.status);
+        }
+        
+        if (businessFilter.startDate) {
+          const startDate = new Date(businessFilter.startDate);
+          executions = executions.filter((e: N8nExecution) => 
+            new Date(e.startedAt) >= startDate
+          );
+        }
+        
+        if (businessFilter.endDate) {
+          const endDate = new Date(businessFilter.endDate);
+          executions = executions.filter((e: N8nExecution) => 
+            new Date(e.startedAt) <= endDate
+          );
+        }
+      }
+
+      return executions;
     } catch (error) {
       logger.error('Failed to fetch executions:', error);
       throw new Error('Failed to fetch executions from n8n');
@@ -314,24 +432,25 @@ export class N8nService {
   }
 
   /**
-   * Get workflow statistics
+   * Get comprehensive workflow statistics with business metrics
    */
-  async getWorkflowStats(workflowId: string): Promise<{
-    totalExecutions: number;
-    successfulExecutions: number;
-    failedExecutions: number;
-    averageExecutionTime: number;
-    lastExecution?: string;
-  }> {
+  async getWorkflowStats(workflowId: string): Promise<WorkflowStats> {
     try {
       const executions = await this.getExecutions(workflowId, 100);
       
-      const stats = {
+      const now = new Date();
+      const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      
+      const stats: WorkflowStats = {
         totalExecutions: executions.length,
         successfulExecutions: executions.filter(e => e.status === 'success').length,
         failedExecutions: executions.filter(e => e.status === 'error').length,
         averageExecutionTime: 0,
         lastExecution: executions[0]?.startedAt,
+        executionsThisMonth: executions.filter(e => new Date(e.startedAt) >= thisMonth).length,
+        executionsToday: executions.filter(e => new Date(e.startedAt) >= today).length,
+        uptimePercentage: 0
       };
 
       // Calculate average execution time
@@ -345,10 +464,171 @@ export class N8nService {
         stats.averageExecutionTime = totalTime / completedExecutions.length;
       }
 
+      // Calculate uptime percentage
+      if (stats.totalExecutions > 0) {
+        stats.uptimePercentage = (stats.successfulExecutions / stats.totalExecutions) * 100;
+      } else {
+        stats.uptimePercentage = 100; // No executions means no failures
+      }
+
       return stats;
     } catch (error) {
       logger.error(`Failed to get workflow stats for ${workflowId}:`, error);
       throw new Error(`Failed to get workflow statistics`);
+    }
+  }
+
+  /**
+   * Deploy workflow with business configuration
+   */
+  async deployWorkflowForBusiness(
+    workflowId: string,
+    businessConfig: {
+      category: string;
+      expectedMonthlySavings: number;
+      targetUsers: string[];
+      department: string;
+      alertsEnabled?: boolean;
+      costThreshold?: number;
+      performanceThreshold?: number;
+    }
+  ): Promise<BusinessWorkflowDeployment> {
+    try {
+      // Activate the workflow
+      await this.activateWorkflow(workflowId, {
+        alertsEnabled: businessConfig.alertsEnabled || true,
+        costThreshold: businessConfig.costThreshold || businessConfig.expectedMonthlySavings * 1.2,
+        performanceThreshold: businessConfig.performanceThreshold || 95
+      });
+
+      // Add business tags
+      const workflow = await this.getWorkflow(workflowId);
+      if (workflow) {
+        const businessTags = [
+          `category:${businessConfig.category}`,
+          `department:${businessConfig.department}`,
+          'smb-deployed'
+        ];
+
+        await this.updateWorkflow(workflowId, {
+          ...workflow,
+          tags: [...(workflow.tags || []), ...businessTags]
+        });
+      }
+
+      const deployment: BusinessWorkflowDeployment = {
+        workflowId,
+        deploymentId: `deploy_${workflowId}_${Date.now()}`,
+        status: 'active',
+        businessConfig: {
+          category: businessConfig.category,
+          expectedMonthlySavings: businessConfig.expectedMonthlySavings,
+          targetUsers: businessConfig.targetUsers,
+          department: businessConfig.department
+        },
+        monitoring: {
+          alertsEnabled: businessConfig.alertsEnabled || true,
+          costThreshold: businessConfig.costThreshold || businessConfig.expectedMonthlySavings * 1.2,
+          performanceThreshold: businessConfig.performanceThreshold || 95
+        },
+        deployedAt: new Date().toISOString()
+      };
+
+      logger.info('Business workflow deployment completed:', {
+        workflowId,
+        deploymentId: deployment.deploymentId,
+        businessConfig
+      });
+
+      return deployment;
+    } catch (error) {
+      logger.error(`Failed to deploy workflow ${workflowId} for business:`, error);
+      throw new Error(`Failed to deploy workflow for business use`);
+    }
+  }
+
+  /**
+   * Monitor workflow performance for business alerts
+   */
+  async monitorWorkflowPerformance(workflowId: string): Promise<{
+    status: 'healthy' | 'warning' | 'critical';
+    issues: Array<{
+      type: 'performance' | 'cost' | 'reliability';
+      severity: 'low' | 'medium' | 'high';
+      message: string;
+      value?: number;
+      threshold?: number;
+    }>;
+  }> {
+    try {
+      const stats = await this.getWorkflowStats(workflowId);
+      const issues = [];
+      let overallStatus: 'healthy' | 'warning' | 'critical' = 'healthy';
+
+      // Check reliability
+      if (stats.uptimePercentage < 80) {
+        issues.push({
+          type: 'reliability',
+          severity: 'high',
+          message: `Low uptime: ${stats.uptimePercentage.toFixed(1)}%`,
+          value: stats.uptimePercentage,
+          threshold: 95
+        });
+        overallStatus = 'critical';
+      } else if (stats.uptimePercentage < 95) {
+        issues.push({
+          type: 'reliability',
+          severity: 'medium',
+          message: `Uptime below target: ${stats.uptimePercentage.toFixed(1)}%`,
+          value: stats.uptimePercentage,
+          threshold: 95
+        });
+        if (overallStatus === 'healthy') overallStatus = 'warning';
+      }
+
+      // Check performance
+      if (stats.averageExecutionTime > 300000) { // 5 minutes
+        issues.push({
+          type: 'performance',
+          severity: 'medium',
+          message: `Slow execution time: ${(stats.averageExecutionTime / 1000).toFixed(1)}s`,
+          value: stats.averageExecutionTime,
+          threshold: 60000
+        });
+        if (overallStatus === 'healthy') overallStatus = 'warning';
+      }
+
+      // Check for no recent executions (possible issue)
+      if (stats.lastExecution) {
+        const lastExec = new Date(stats.lastExecution);
+        const daysSinceLastExecution = (Date.now() - lastExec.getTime()) / (1000 * 60 * 60 * 24);
+        
+        if (daysSinceLastExecution > 7) {
+          issues.push({
+            type: 'reliability',
+            severity: 'medium',
+            message: `No executions in ${Math.round(daysSinceLastExecution)} days`,
+            value: daysSinceLastExecution,
+            threshold: 1
+          });
+          if (overallStatus === 'healthy') overallStatus = 'warning';
+        }
+      }
+
+      return {
+        status: overallStatus,
+        issues
+      };
+    } catch (error) {
+      logger.error(`Failed to monitor workflow ${workflowId}:`, error);
+      return {
+        status: 'critical',
+        issues: [{
+          type: 'reliability',
+          severity: 'high',
+          message: 'Unable to retrieve workflow monitoring data'
+        }]
+      };
     }
   }
 
@@ -385,6 +665,87 @@ export class N8nService {
     } catch (error) {
       logger.error(`Failed to export workflow ${id}:`, error);
       throw new Error(`Failed to export workflow ${id}`);
+    }
+  }
+
+  /**
+   * Get business-focused workflow analytics
+   */
+  async getBusinessAnalytics(timeframe: 'day' | 'week' | 'month' | 'quarter' = 'month'): Promise<{
+    totalWorkflows: number;
+    activeWorkflows: number;
+    totalExecutions: number;
+    successRate: number;
+    costSavings: number;
+    timeSaved: number; // hours
+    departmentBreakdown: Record<string, number>;
+    categoryBreakdown: Record<string, number>;
+  }> {
+    try {
+      const workflows = await this.getWorkflows();
+      const activeWorkflows = workflows.filter(w => w.active);
+      
+      // Get executions for the timeframe
+      const startDate = this.getStartDateForTimeframe(timeframe);
+      const executions = await Promise.all(
+        workflows.map(w => this.getExecutions(w.id, 1000, { 
+          startDate: startDate.toISOString() 
+        }))
+      );
+      
+      const allExecutions = executions.flat();
+      const successfulExecutions = allExecutions.filter(e => e.status === 'success');
+      
+      // Analyze workflow tags for business insights
+      const departmentBreakdown: Record<string, number> = {};
+      const categoryBreakdown: Record<string, number> = {};
+      
+      workflows.forEach(workflow => {
+        if (workflow.tags) {
+          workflow.tags.forEach(tag => {
+            if (tag.startsWith('department:')) {
+              const dept = tag.replace('department:', '');
+              departmentBreakdown[dept] = (departmentBreakdown[dept] || 0) + 1;
+            } else if (tag.startsWith('category:')) {
+              const cat = tag.replace('category:', '');
+              categoryBreakdown[cat] = (categoryBreakdown[cat] || 0) + 1;
+            }
+          });
+        }
+      });
+      
+      return {
+        totalWorkflows: workflows.length,
+        activeWorkflows: activeWorkflows.length,
+        totalExecutions: allExecutions.length,
+        successRate: allExecutions.length > 0 ? (successfulExecutions.length / allExecutions.length) * 100 : 0,
+        costSavings: successfulExecutions.length * 5, // Estimate $5 savings per successful execution
+        timeSaved: successfulExecutions.length * 0.25, // Estimate 15 minutes saved per execution
+        departmentBreakdown,
+        categoryBreakdown
+      };
+    } catch (error) {
+      logger.error('Failed to get business analytics:', error);
+      throw new Error('Failed to retrieve business analytics');
+    }
+  }
+
+  private getStartDateForTimeframe(timeframe: 'day' | 'week' | 'month' | 'quarter'): Date {
+    const now = new Date();
+    switch (timeframe) {
+      case 'day':
+        return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      case 'week':
+        const weekStart = new Date(now);
+        weekStart.setDate(now.getDate() - 7);
+        return weekStart;
+      case 'month':
+        return new Date(now.getFullYear(), now.getMonth(), 1);
+      case 'quarter':
+        const quarterStart = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1);
+        return quarterStart;
+      default:
+        return new Date(now.getFullYear(), now.getMonth(), 1);
     }
   }
 }
