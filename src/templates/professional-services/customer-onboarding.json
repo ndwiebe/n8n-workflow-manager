@@ -1,0 +1,271 @@
+{
+  "name": "Customer Onboarding Automation",
+  "description": "Streamline new customer onboarding with automated welcome emails, account setup, and task assignments",
+  "version": "1.0.0",
+  "category": "customer-management",
+  "industry": "professional-services",
+  "complexity": "Intermediate",
+  "estimatedTime": "30 min",
+  "businessImpact": {
+    "timeSaved": "8 hours/week",
+    "costReduction": "$2,400/month",
+    "errorReduction": "90%"
+  },
+  "tags": ["CRM", "Email", "Customer Success", "Onboarding"],
+  "workflow": {
+    "nodes": [
+      {
+        "parameters": {
+          "path": "/new-customer",
+          "httpMethod": "POST",
+          "responseMode": "responseNode"
+        },
+        "id": "webhook-trigger",
+        "name": "New Customer Webhook",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 1,
+        "position": [240, 300],
+        "webhookId": "customer-onboarding"
+      },
+      {
+        "parameters": {
+          "functionCode": "// Extract customer data from webhook\nconst customerData = items[0].json;\n\n// Validate required fields\nif (!customerData.email || !customerData.name) {\n  throw new Error('Customer email and name are required');\n}\n\n// Format customer data\nconst formattedCustomer = {\n  id: customerData.id || Date.now(),\n  name: customerData.name,\n  email: customerData.email,\n  company: customerData.company || '',\n  phone: customerData.phone || '',\n  source: customerData.source || 'website',\n  signupDate: new Date().toISOString(),\n  status: 'new',\n  onboardingStep: 1\n};\n\nreturn [{\n  json: formattedCustomer\n}];"
+        },
+        "id": "process-customer-data",
+        "name": "Process Customer Data",
+        "type": "n8n-nodes-base.function",
+        "typeVersion": 1,
+        "position": [460, 300]
+      },
+      {
+        "parameters": {
+          "operation": "create",
+          "resource": "contact",
+          "additionalFields": {
+            "company": "={{$json[\"company\"]}}",
+            "phone": "={{$json[\"phone\"]}}",
+            "source": "={{$json[\"source\"]}}",
+            "customFields": {
+              "onboarding_step": "={{$json[\"onboardingStep\"]}}",
+              "signup_date": "={{$json[\"signupDate\"]}}"
+            }
+          },
+          "email": "={{$json[\"email\"]}}",
+          "firstName": "={{$json[\"name\"]}}"
+        },
+        "id": "create-crm-contact",
+        "name": "Create CRM Contact",
+        "type": "n8n-nodes-base.hubspot",
+        "typeVersion": 1,
+        "position": [680, 200]
+      },
+      {
+        "parameters": {
+          "subject": "Welcome to our service, {{$json[\"name\"]}}!",
+          "message": "Hi {{$json[\"name\"]}},\n\nWelcome to our service! We're excited to have you on board.\n\nHere's what happens next:\n1. Account setup (within 24 hours)\n2. Welcome call scheduling\n3. Access to your dashboard\n\nIf you have any questions, don't hesitate to reach out.\n\nBest regards,\nThe Team",
+          "toEmail": "={{$json[\"email\"]}}",
+          "fromEmail": "welcome@company.com",
+          "fromName": "Company Team"
+        },
+        "id": "send-welcome-email",
+        "name": "Send Welcome Email",
+        "type": "n8n-nodes-base.emailSend",
+        "typeVersion": 1,
+        "position": [680, 400]
+      },
+      {
+        "parameters": {
+          "operation": "create",
+          "resource": "task",
+          "title": "Setup account for {{$json[\"name\"]}}",
+          "description": "Complete account setup for new customer:\n- Create user accounts\n- Set up initial configuration\n- Prepare welcome materials\n\nCustomer Details:\nName: {{$json[\"name\"]}}\nEmail: {{$json[\"email\"]}}\nCompany: {{$json[\"company\"]}}",
+          "assignee": "admin@company.com",
+          "dueDate": "={{DateTime.now().plus({days: 1}).toISO()}}",
+          "priority": "high"
+        },
+        "id": "create-setup-task",
+        "name": "Create Setup Task",
+        "type": "n8n-nodes-base.todoist",
+        "typeVersion": 1,
+        "position": [680, 600]
+      },
+      {
+        "parameters": {
+          "channel": "#customer-success",
+          "message": "🎉 New customer alert!\n\n*Customer:* {{$json[\"name\"]}}\n*Email:* {{$json[\"email\"]}}\n*Company:* {{$json[\"company\"]}}\n*Source:* {{$json[\"source\"]}}\n\nWelcome email sent ✅\nCRM contact created ✅\nSetup task assigned ✅\n\nNext: Schedule welcome call within 24 hours"
+        },
+        "id": "notify-team",
+        "name": "Notify Team",
+        "type": "n8n-nodes-base.slack",
+        "typeVersion": 1,
+        "position": [900, 300]
+      },
+      {
+        "parameters": {
+          "functionCode": "// Schedule follow-up email for 3 days\nconst followUpDate = DateTime.now().plus({days: 3}).toISO();\n\nreturn [{\n  json: {\n    ...items[0].json,\n    followUpDate,\n    followUpType: 'check-in',\n    message: 'Schedule follow-up check-in email'\n  }\n}];"
+        },
+        "id": "schedule-followup",
+        "name": "Schedule Follow-up",
+        "type": "n8n-nodes-base.function",
+        "typeVersion": 1,
+        "position": [900, 500]
+      },
+      {
+        "parameters": {
+          "respondWith": "json",
+          "responseBody": "{\n  \"success\": true,\n  \"message\": \"Customer onboarding initiated successfully\",\n  \"customerId\": \"={{$json['id']}}\",\n  \"onboardingStep\": \"={{$json['onboardingStep']}}\",\n  \"nextActions\": [\n    \"Welcome email sent\",\n    \"CRM contact created\",\n    \"Setup task assigned\",\n    \"Team notified\",\n    \"Follow-up scheduled\"\n  ]\n}"
+        },
+        "id": "webhook-response",
+        "name": "Webhook Response",
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1,
+        "position": [1120, 300]
+      }
+    ],
+    "connections": {
+      "New Customer Webhook": {
+        "main": [
+          [
+            {
+              "node": "Process Customer Data",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Process Customer Data": {
+        "main": [
+          [
+            {
+              "node": "Create CRM Contact",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Send Welcome Email",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Create Setup Task",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Create CRM Contact": {
+        "main": [
+          [
+            {
+              "node": "Notify Team",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Send Welcome Email": {
+        "main": [
+          [
+            {
+              "node": "Notify Team",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Create Setup Task": {
+        "main": [
+          [
+            {
+              "node": "Schedule Follow-up",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Notify Team": {
+        "main": [
+          [
+            {
+              "node": "Webhook Response",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Schedule Follow-up": {
+        "main": [
+          [
+            {
+              "node": "Webhook Response",
+              "type": "main",
+             "index": 0
+            }
+          ]
+        ]
+      }
+    }
+  },
+  "setupInstructions": [
+    {
+      "step": 1,
+      "title": "Configure Webhook URL",
+      "description": "Copy the webhook URL and configure it in your website or form system to trigger when new customers sign up."
+    },
+    {
+      "step": 2,
+      "title": "Setup CRM Integration",
+      "description": "Connect your HubSpot account or replace with your preferred CRM integration node."
+    },
+    {
+      "step": 3,
+      "title": "Configure Email Settings",
+      "description": "Set up your email credentials and customize the welcome email template."
+    },
+    {
+      "step": 4,
+      "title": "Setup Task Management",
+      "description": "Connect your Todoist account or replace with your preferred task management system."
+    },
+    {
+      "step": 5,
+      "title": "Configure Slack Notifications",
+      "description": "Connect your Slack workspace and set the appropriate channel for customer notifications."
+    },
+    {
+      "step": 6,
+      "title": "Test the Workflow",
+      "description": "Send a test webhook to ensure all integrations are working correctly."
+    }
+  ],
+  "requiredCredentials": [
+    "hubspot",
+    "email",
+    "todoist",
+    "slack"
+  ],
+  "customization": {
+    "emailTemplate": {
+      "editable": true,
+      "description": "Customize the welcome email content, subject, and sender information"
+    },
+    "followUpSchedule": {
+      "editable": true,
+      "description": "Adjust the follow-up email timing (currently set to 3 days)"
+    },
+    "taskAssignment": {
+      "editable": true,
+      "description": "Change task assignee and due date settings"
+    },
+    "slackChannel": {
+      "editable": true,
+      "description": "Modify the Slack channel for notifications"
+    }
+  }
+}
