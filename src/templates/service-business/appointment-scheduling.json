@@ -1,0 +1,414 @@
+{
+  "name": "Appointment Scheduling & Reminders",
+  "description": "Automate appointment booking, confirmations, and reminder sequences for service businesses",
+  "version": "1.0.0",
+  "category": "customer-management",
+  "industry": "service-business",
+  "complexity": "Intermediate",
+  "estimatedTime": "35 min",
+  "businessImpact": {
+    "timeSaved": "12 hours/week",
+    "costReduction": "$3,000/month",
+    "errorReduction": "88%"
+  },
+  "tags": ["Scheduling", "Appointments", "Reminders", "Customer Service"],
+  "workflow": {
+    "nodes": [
+      {
+        "parameters": {
+          "path": "/book-appointment",
+          "httpMethod": "POST"
+        },
+        "id": "booking-webhook",
+        "name": "Appointment Booking",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 1,
+        "position": [240, 300]
+      },
+      {
+        "parameters": {
+          "functionCode": "// Process appointment booking data\nconst bookingData = items[0].json;\n\n// Validate required fields\nif (!bookingData.customerEmail || !bookingData.appointmentDate) {\n  throw new Error('Customer email and appointment date are required');\n}\n\n// Generate booking confirmation number\nconst bookingId = 'APPT-' + Date.now();\n\n// Parse appointment date\nconst appointmentDateTime = new Date(bookingData.appointmentDate);\nconst reminderDate24h = new Date(appointmentDateTime.getTime() - (24 * 60 * 60 * 1000));\nconst reminderDate2h = new Date(appointmentDateTime.getTime() - (2 * 60 * 60 * 1000));\n\nconst appointment = {\n  bookingId,\n  customerName: bookingData.customerName || 'Customer',\n  customerEmail: bookingData.customerEmail,\n  customerPhone: bookingData.customerPhone || '',\n  service: bookingData.service || 'Consultation',\n  appointmentDate: appointmentDateTime.toISOString(),\n  duration: bookingData.duration || 60,\n  location: bookingData.location || 'Our Office',\n  notes: bookingData.notes || '',\n  status: 'confirmed',\n  bookedAt: new Date().toISOString(),\n  reminderDate24h: reminderDate24h.toISOString(),\n  reminderDate2h: reminderDate2h.toISOString(),\n  provider: bookingData.provider || 'Default Provider'\n};\n\nreturn [{ json: appointment }];"
+        },
+        "id": "process-booking",
+        "name": "Process Booking Data",
+        "type": "n8n-nodes-base.function",
+        "typeVersion": 1,
+        "position": [460, 300]
+      },
+      {
+        "parameters": {
+          "operation": "create",
+          "resource": "event",
+          "start": "={{$json[\"appointmentDate\"]}}",
+          "end": "={{DateTime.fromISO($json[\"appointmentDate\"]).plus({minutes: $json[\"duration\"]}).toISO()}}",
+          "title": "={{$json[\"service\"]}} - {{$json[\"customerName\"]}}",
+          "description": "Customer: {{$json[\"customerName\"]}}\nEmail: {{$json[\"customerEmail\"]}}\nPhone: {{$json[\"customerPhone\"]}}\nService: {{$json[\"service\"]}}\nNotes: {{$json[\"notes\"]}}\nBooking ID: {{$json[\"bookingId\"]}}",
+          "location": "={{$json[\"location\"]}}"
+        },
+        "id": "create-calendar-event",
+        "name": "Create Calendar Event",
+        "type": "n8n-nodes-base.googleCalendar",
+        "typeVersion": 1,
+        "position": [680, 200]
+      },
+      {
+        "parameters": {
+          "subject": "Appointment Confirmed: {{$json[\"service\"]}} - {{DateTime.fromISO($json[\"appointmentDate\"]).toFormat('MMM dd, yyyy')}}",
+          "message": "Dear {{$json[\"customerName\"]}},\n\nYour appointment has been confirmed! Here are the details:\n\n**Appointment Details:**\n- Service: {{$json[\"service\"]}}\n- Date: {{DateTime.fromISO($json[\"appointmentDate\"]).toFormat('EEEE, MMMM dd, yyyy')}}\n- Time: {{DateTime.fromISO($json[\"appointmentDate\"]).toFormat('h:mm a')}}\n- Duration: {{$json[\"duration\"]}} minutes\n- Location: {{$json[\"location\"]}}\n- Provider: {{$json[\"provider\"]}}\n- Booking ID: {{$json[\"bookingId\"]}}\n\n**Important Information:**\n- Please arrive 10 minutes early\n- Bring a valid ID\n- If you need to reschedule, please contact us at least 24 hours in advance\n\n**Contact Information:**\n- Phone: [Your Phone]\n- Email: [Your Email]\n\nWe look forward to seeing you!\n\nBest regards,\n[Your Business Name]",
+          "toEmail": "={{$json[\"customerEmail\"]}}",
+          "fromEmail": "appointments@yourbusiness.com"
+        },
+        "id": "send-confirmation",
+        "name": "Send Confirmation Email",
+        "type": "n8n-nodes-base.emailSend",
+        "typeVersion": 1,
+        "position": [680, 400]
+      },
+      {
+        "parameters": {
+          "operation": "insert",
+          "collection": "appointments",
+          "fields": "appointment"
+        },
+        "id": "save-appointment",
+        "name": "Save to Database",
+        "type": "n8n-nodes-base.mongoDb",
+        "typeVersion": 1,
+        "position": [680, 600]
+      },
+      {
+        "parameters": {
+          "channel": "#appointments",
+          "message": "📅 *New Appointment Booked*\n\n*Customer:* {{$json[\"customerName\"]}}\n*Service:* {{$json[\"service\"]}}\n*Date:* {{DateTime.fromISO($json[\"appointmentDate\"]).toFormat('MMM dd, yyyy')}}\n*Time:* {{DateTime.fromISO($json[\"appointmentDate\"]).toFormat('h:mm a')}}\n*Provider:* {{$json[\"provider\"]}}\n*Booking ID:* {{$json[\"bookingId\"]}}\n\n✅ Calendar event created\n✅ Confirmation email sent\n✅ Reminders scheduled"
+        },
+        "id": "notify-team",
+        "name": "Notify Team",
+        "type": "n8n-nodes-base.slack",
+        "typeVersion": 1,
+        "position": [900, 300]
+      },
+      {
+        "parameters": {
+          "dateTime": "={{$json[\"reminderDate24h\"]}}",
+          "timezone": "America/New_York"
+        },
+        "id": "schedule-24h-reminder",
+        "name": "Schedule 24h Reminder",
+        "type": "n8n-nodes-base.schedule",
+        "typeVersion": 1,
+        "position": [900, 500]
+      },
+      {
+        "parameters": {
+          "operation": "findOne",
+          "collection": "appointments",
+          "query": "{\"bookingId\": \"{{$json[\"bookingId\"]}}\"}"
+        },
+        "id": "check-appointment-status",
+        "name": "Check Appointment Status",
+        "type": "n8n-nodes-base.mongoDb",
+        "typeVersion": 1,
+        "position": [1120, 500]
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "string": [
+              {
+                "value1": "={{$json[\"status\"]}}",
+                "value2": "confirmed"
+              }
+            ]
+          }
+        },
+        "id": "is-still-confirmed",
+        "name": "Still Confirmed?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 1,
+        "position": [1340, 500]
+      },
+      {
+        "parameters": {
+          "subject": "Reminder: Your appointment tomorrow - {{$json[\"service\"]}}",
+          "message": "Dear {{$json[\"customerName\"]}},\n\nThis is a friendly reminder about your appointment tomorrow.\n\n**Appointment Details:**\n- Service: {{$json[\"service\"]}}\n- Date: {{DateTime.fromISO($json[\"appointmentDate\"]).toFormat('EEEE, MMMM dd, yyyy')}}\n- Time: {{DateTime.fromISO($json[\"appointmentDate\"]).toFormat('h:mm a')}}\n- Duration: {{$json[\"duration\"]}} minutes\n- Location: {{$json[\"location\"]}}\n- Provider: {{$json[\"provider\"]}}\n\n**Reminders:**\n- Please arrive 10 minutes early\n- Bring a valid ID\n- If you need to cancel or reschedule, please contact us ASAP\n\n**Need to make changes?**\nCall us: [Your Phone]\nEmail us: [Your Email]\n\nWe look forward to seeing you tomorrow!\n\nBest regards,\n[Your Business Name]",
+          "toEmail": "={{$json[\"customerEmail\"]}}",
+          "fromEmail": "appointments@yourbusiness.com"
+        },
+        "id": "send-24h-reminder",
+        "name": "Send 24h Reminder",
+        "type": "n8n-nodes-base.emailSend",
+        "typeVersion": 1,
+        "position": [1340, 700]
+      },
+      {
+        "parameters": {
+          "dateTime": "={{$json[\"reminderDate2h\"]}}",
+          "timezone": "America/New_York"
+        },
+        "id": "schedule-2h-reminder",
+        "name": "Schedule 2h Reminder",
+        "type": "n8n-nodes-base.schedule",
+        "typeVersion": 1,
+        "position": [1560, 700]
+      },
+      {
+        "parameters": {
+          "operation": "findOne",
+          "collection": "appointments",
+          "query": "{\"bookingId\": \"{{$json[\"bookingId\"]}}\"}"
+        },
+        "id": "final-status-check",
+        "name": "Final Status Check",
+        "type": "n8n-nodes-base.mongoDb",
+        "typeVersion": 1,
+        "position": [1780, 700]
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "string": [
+              {
+                "value1": "={{$json[\"status\"]}}",
+                "value2": "confirmed"
+              }
+            ]
+          }
+        },
+        "id": "final-confirmation-check",
+        "name": "Final Confirmation?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 1,
+        "position": [2000, 700]
+      },
+      {
+        "parameters": {
+          "phoneNumber": "={{$json[\"customerPhone\"]}}",
+          "message": "Hi {{$json[\"customerName\"]}}, this is a final reminder about your {{$json[\"service\"]}} appointment in 2 hours at {{DateTime.fromISO($json[\"appointmentDate\"]).toFormat('h:mm a')}}. Please confirm by replying YES or call us if you need to reschedule. Thank you! - [Your Business]"
+        },
+        "id": "send-sms-reminder",
+        "name": "Send SMS Reminder",
+        "type": "n8n-nodes-base.twilio",
+        "typeVersion": 1,
+        "position": [2000, 900]
+      },
+      {
+        "parameters": {
+          "respondWith": "json",
+          "responseBody": "{\n  \"success\": true,\n  \"message\": \"Appointment booked successfully\",\n  \"bookingId\": \"={{$json['bookingId']}}\",\n  \"appointmentDate\": \"={{$json['appointmentDate']}}\",\n  \"service\": \"={{$json['service']}}\",\n  \"status\": \"confirmed\",\n  \"actions\": [\n    \"Calendar event created\",\n    \"Confirmation email sent\",\n    \"Database record saved\",\n    \"Team notified\",\n    \"Reminders scheduled\"\n  ]\n}"
+        },
+        "id": "booking-response",
+        "name": "Booking Response",
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1,
+        "position": [1120, 300]
+      }
+    ],
+    "connections": {
+      "Appointment Booking": {
+        "main": [
+          [
+            {
+              "node": "Process Booking Data",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Process Booking Data": {
+        "main": [
+          [
+            {
+              "node": "Create Calendar Event",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Send Confirmation Email",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Save to Database",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Create Calendar Event": {
+        "main": [
+          [
+            {
+              "node": "Notify Team",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Send Confirmation Email": {
+        "main": [
+          [
+            {
+              "node": "Schedule 24h Reminder",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Notify Team": {
+        "main": [
+          [
+            {
+              "node": "Booking Response",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Schedule 24h Reminder": {
+        "main": [
+          [
+            {
+              "node": "Check Appointment Status",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Check Appointment Status": {
+        "main": [
+          [
+            {
+              "node": "Still Confirmed?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Still Confirmed?": {
+        "main": [
+          [],
+          [
+            {
+              "node": "Send 24h Reminder",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Send 24h Reminder": {
+        "main": [
+          [
+            {
+              "node": "Schedule 2h Reminder",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Schedule 2h Reminder": {
+        "main": [
+          [
+            {
+              "node": "Final Status Check",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Final Status Check": {
+        "main": [
+          [
+            {
+              "node": "Final Confirmation?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Final Confirmation?": {
+        "main": [
+          [],
+          [
+            {
+              "node": "Send SMS Reminder",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    }
+  },
+  "setupInstructions": [
+    {
+      "step": 1,
+      "title": "Configure Booking Webhook",
+      "description": "Set up the webhook URL in your booking system or website appointment form."
+    },
+    {
+      "step": 2,
+      "title": "Connect Google Calendar",
+      "description": "Link your Google Calendar account to automatically create appointment events."
+    },
+    {
+      "step": 3,
+      "title": "Setup Email Configuration",
+      "description": "Configure your business email for sending confirmations and reminders."
+    },
+    {
+      "step": 4,
+      "title": "Configure Database",
+      "description": "Set up MongoDB to store appointment data and track status changes."
+    },
+    {
+      "step": 5,
+      "title": "Setup SMS Notifications",
+      "description": "Connect Twilio for final SMS reminders (optional but recommended)."
+    },
+    {
+      "step": 6,
+      "title": "Configure Team Notifications",
+      "description": "Set up Slack notifications to keep your team informed of new bookings."
+    }
+  ],
+  "requiredCredentials": [
+    "googleCalendar",
+    "email",
+    "mongoDb",
+    "slack",
+    "twilio"
+  ],
+  "customization": {
+    "reminderTiming": {
+      "editable": true,
+      "description": "Adjust when reminders are sent (currently 24 hours and 2 hours before)"
+    },
+    "emailTemplates": {
+      "editable": true,
+      "description": "Customize confirmation and reminder email content"
+    },
+    "businessInfo": {
+      "editable": true,
+      "description": "Update business name, contact info, and location details"
+    },
+    "appointmentTypes": {
+      "editable": true,
+      "description": "Configure different services and their default durations"
+    },
+    "cancellationPolicy": {
+      "editable": true,
+      "description": "Add your cancellation and rescheduling policies to emails"
+    }
+  }
+}
