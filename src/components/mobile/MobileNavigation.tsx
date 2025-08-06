@@ -19,7 +19,7 @@ import {
 import {
   Dashboard as DashboardIcon,
   AccountTree as WorkflowIcon,
-  Template as TemplateIcon,
+  ViewModule as TemplateIcon,
   Notifications as NotificationIcon,
   Menu as MenuIcon,
   Settings as SettingsIcon,
