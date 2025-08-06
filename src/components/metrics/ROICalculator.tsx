@@ -16,7 +16,7 @@ import {
   useMediaQuery
 } from '@mui/material';
 import {
-  Calculator as CalculatorIcon,
+  Calculate as CalculatorIcon,
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
   TrendingUp as TrendingUpIcon,
