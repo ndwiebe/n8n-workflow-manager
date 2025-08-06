@@ -1,0 +1,397 @@
+{
+  "name": "Invoice Generation & Follow-up",
+  "description": "Generate invoices automatically and send follow-up reminders for overdue payments",
+  "version": "1.0.0",
+  "category": "finance-accounting",
+  "industry": "professional-services",
+  "complexity": "Beginner",
+  "estimatedTime": "20 min",
+  "businessImpact": {
+    "timeSaved": "5 hours/week",
+    "costReduction": "$1,200/month",
+    "errorReduction": "85%"
+  },
+  "tags": ["Invoicing", "Payments", "Accounting", "Follow-up"],
+  "workflow": {
+    "nodes": [
+      {
+        "parameters": {
+          "path": "/create-invoice",
+          "httpMethod": "POST"
+        },
+        "id": "invoice-trigger",
+        "name": "Invoice Creation Trigger",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 1,
+        "position": [240, 300]
+      },
+      {
+        "parameters": {
+          "functionCode": "// Process invoice data\nconst invoiceData = items[0].json;\n\n// Validate required fields\nif (!invoiceData.clientEmail || !invoiceData.amount) {\n  throw new Error('Client email and amount are required');\n}\n\n// Generate invoice number\nconst invoiceNumber = 'INV-' + Date.now();\n\n// Calculate due date (30 days from now)\nconst dueDate = DateTime.now().plus({days: 30}).toISO();\n\nconst invoice = {\n  invoiceNumber,\n  clientName: invoiceData.clientName || 'Client',\n  clientEmail: invoiceData.clientEmail,\n  amount: parseFloat(invoiceData.amount),\n  description: invoiceData.description || 'Professional services',\n  issueDate: new Date().toISOString(),\n  dueDate,\n  status: 'sent',\n  currency: invoiceData.currency || 'USD',\n  items: invoiceData.items || [{\n    description: invoiceData.description || 'Professional services',\n    quantity: 1,\n    rate: parseFloat(invoiceData.amount),\n    total: parseFloat(invoiceData.amount)\n  }]\n};\n\nreturn [{ json: invoice }];"
+        },
+        "id": "process-invoice-data",
+        "name": "Process Invoice Data",
+        "type": "n8n-nodes-base.function",
+        "typeVersion": 1,
+        "position": [460, 300]
+      },
+      {
+        "parameters": {
+          "operation": "create",
+          "resource": "invoice",
+          "clientEmail": "={{$json[\"clientEmail\"]}}",
+          "amount": "={{$json[\"amount\"]}}",
+          "description": "={{$json[\"description\"]}}",
+          "dueDate": "={{$json[\"dueDate\"]}}",
+          "additionalFields": {
+            "invoiceNumber": "={{$json[\"invoiceNumber\"]}}",
+            "currency": "={{$json[\"currency\"]}}"
+          }
+        },
+        "id": "create-quickbooks-invoice",
+        "name": "Create QuickBooks Invoice",
+        "type": "n8n-nodes-base.quickBooks",
+        "typeVersion": 1,
+        "position": [680, 200]
+      },
+      {
+        "parameters": {
+          "subject": "Invoice {{$json[\"invoiceNumber\"]}} - {{$json[\"clientName\"]}}",
+          "message": "Dear {{$json[\"clientName\"]}},\n\nPlease find attached your invoice for our recent services.\n\n**Invoice Details:**\n- Invoice Number: {{$json[\"invoiceNumber\"]}}\n- Amount: ${{$json[\"amount\"]}}\n- Due Date: {{DateTime.fromISO($json[\"dueDate\"]).toFormat('MMMM dd, yyyy')}}\n\n**Description:**\n{{$json[\"description\"]}}\n\n**Payment Instructions:**\nYou can pay this invoice online at: [Payment Link]\nOr send a check to our mailing address.\n\nThank you for your business!\n\nBest regards,\n[Your Name]\n[Your Business]",
+          "toEmail": "={{$json[\"clientEmail\"]}}",
+          "fromEmail": "billing@yourcompany.com",
+          "fromName": "Your Company Billing"
+        },
+        "id": "send-invoice-email",
+        "name": "Send Invoice Email",
+        "type": "n8n-nodes-base.emailSend",
+        "typeVersion": 1,
+        "position": [680, 400]
+      },
+      {
+        "parameters": {
+          "operation": "insert",
+          "collection": "invoices",
+          "fields": "invoice"
+        },
+        "id": "save-to-database",
+        "name": "Save to Database",
+        "type": "n8n-nodes-base.mongoDb",
+        "typeVersion": 1,
+        "position": [680, 600]
+      },
+      {
+        "parameters": {
+          "unit": "days",
+          "amount": 7
+        },
+        "id": "wait-7-days",
+        "name": "Wait 7 Days",
+        "type": "n8n-nodes-base.wait",
+        "typeVersion": 1,
+        "position": [900, 300]
+      },
+      {
+        "parameters": {
+          "operation": "findOne",
+          "collection": "invoices",
+          "query": "{\"invoiceNumber\": \"{{$json[\"invoiceNumber\"]}}\"}"
+        },
+        "id": "check-payment-status",
+        "name": "Check Payment Status",
+        "type": "n8n-nodes-base.mongoDb",
+        "typeVersion": 1,
+        "position": [1120, 300]
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "string": [
+              {
+                "value1": "={{$json[\"status\"]}}",
+                "value2": "paid"
+              }
+            ]
+          }
+        },
+        "id": "is-paid-check",
+        "name": "Is Invoice Paid?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 1,
+        "position": [1340, 300]
+      },
+      {
+        "parameters": {
+          "subject": "Payment Reminder - Invoice {{$json[\"invoiceNumber\"]}}",
+          "message": "Dear {{$json[\"clientName\"]}},\n\nThis is a friendly reminder that your invoice is due soon.\n\n**Invoice Details:**\n- Invoice Number: {{$json[\"invoiceNumber\"]}}\n- Amount: ${{$json[\"amount\"]}}\n- Original Due Date: {{DateTime.fromISO($json[\"dueDate\"]).toFormat('MMMM dd, yyyy')}}\n\nIf you've already made this payment, please disregard this message. If not, you can pay online at: [Payment Link]\n\nIf you have any questions about this invoice, please don't hesitate to contact us.\n\nThank you!\n\nBest regards,\n[Your Name]\n[Your Business]",
+          "toEmail": "={{$json[\"clientEmail\"]}}",
+          "fromEmail": "billing@yourcompany.com"
+        },
+        "id": "send-reminder-email",
+        "name": "Send Payment Reminder",
+        "type": "n8n-nodes-base.emailSend",
+        "typeVersion": 1,
+        "position": [1340, 500]
+      },
+      {
+        "parameters": {
+          "unit": "days",
+          "amount": 15
+        },
+        "id": "wait-15-more-days",
+        "name": "Wait 15 More Days",
+        "type": "n8n-nodes-base.wait",
+        "typeVersion": 1,
+        "position": [1560, 500]
+      },
+      {
+        "parameters": {
+          "operation": "findOne",
+          "collection": "invoices",
+          "query": "{\"invoiceNumber\": \"{{$json[\"invoiceNumber\"]}}\"}"
+        },
+        "id": "final-payment-check",
+        "name": "Final Payment Check",
+        "type": "n8n-nodes-base.mongoDb",
+        "typeVersion": 1,
+        "position": [1780, 500]
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "string": [
+              {
+                "value1": "={{$json[\"status\"]}}",
+                "value2": "paid"
+              }
+            ]
+          }
+        },
+        "id": "final-paid-check",
+        "name": "Still Unpaid?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 1,
+        "position": [2000, 500]
+      },
+      {
+        "parameters": {
+          "subject": "URGENT: Overdue Invoice {{$json[\"invoiceNumber\"]}}",
+          "message": "Dear {{$json[\"clientName\"]}},\n\nYour invoice is now significantly overdue. We kindly request immediate payment to avoid any disruption to our services.\n\n**Overdue Invoice Details:**\n- Invoice Number: {{$json[\"invoiceNumber\"]}}\n- Amount: ${{$json[\"amount\"]}}\n- Original Due Date: {{DateTime.fromISO($json[\"dueDate\"]).toFormat('MMMM dd, yyyy')}}\n- Days Overdue: {{Math.floor((Date.now() - new Date($json[\"dueDate\"]).getTime()) / (1000 * 60 * 60 * 24))}}\n\n**Immediate Action Required:**\nPlease contact us immediately to resolve this matter. You can:\n1. Pay online: [Payment Link]\n2. Call us: [Phone Number]\n3. Email us: [Email Address]\n\nWe value our business relationship and want to resolve this quickly.\n\nUrgent regards,\n[Your Name]\n[Your Business]",
+          "toEmail": "={{$json[\"clientEmail\"]}}",
+          "fromEmail": "billing@yourcompany.com"
+        },
+        "id": "send-overdue-notice",
+        "name": "Send Overdue Notice",
+        "type": "n8n-nodes-base.emailSend",
+        "typeVersion": 1,
+        "position": [2000, 700]
+      },
+      {
+        "parameters": {
+          "channel": "#accounting",
+          "message": "🚨 *Overdue Invoice Alert*\n\n*Client:* {{$json[\"clientName\"]}}\n*Email:* {{$json[\"clientEmail\"]}}\n*Invoice:* {{$json[\"invoiceNumber\"]}}\n*Amount:* ${{$json[\"amount\"]}}\n*Days Overdue:* {{Math.floor((Date.now() - new Date($json[\"dueDate\"]).getTime()) / (1000 * 60 * 60 * 24))}}\n\n*Action Required:* Follow up with client for payment"
+        },
+        "id": "alert-team",
+        "name": "Alert Accounting Team",
+        "type": "n8n-nodes-base.slack",
+        "typeVersion": 1,
+        "position": [2220, 700]
+      }
+    ],
+    "connections": {
+      "Invoice Creation Trigger": {
+        "main": [
+          [
+            {
+              "node": "Process Invoice Data",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Process Invoice Data": {
+        "main": [
+          [
+            {
+              "node": "Create QuickBooks Invoice",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Send Invoice Email",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Save to Database",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Send Invoice Email": {
+        "main": [
+          [
+            {
+              "node": "Wait 7 Days",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Wait 7 Days": {
+        "main": [
+          [
+            {
+              "node": "Check Payment Status",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Check Payment Status": {
+        "main": [
+          [
+            {
+              "node": "Is Invoice Paid?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Is Invoice Paid?": {
+        "main": [
+          [],
+          [
+            {
+              "node": "Send Payment Reminder",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Send Payment Reminder": {
+        "main": [
+          [
+            {
+              "node": "Wait 15 More Days",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Wait 15 More Days": {
+        "main": [
+          [
+            {
+              "node": "Final Payment Check",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Final Payment Check": {
+        "main": [
+          [
+            {
+              "node": "Still Unpaid?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Still Unpaid?": {
+        "main": [
+          [],
+          [
+            {
+              "node": "Send Overdue Notice",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Send Overdue Notice": {
+        "main": [
+          [
+            {
+              "node": "Alert Accounting Team",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    }
+  },
+  "setupInstructions": [
+    {
+      "step": 1,
+      "title": "Configure Webhook Trigger",
+      "description": "Set up the webhook URL in your invoicing system or manual trigger process."
+    },
+    {
+      "step": 2,
+      "title": "Connect QuickBooks",
+      "description": "Set up QuickBooks integration for automatic invoice creation and tracking."
+    },
+    {
+      "step": 3,
+      "title": "Configure Email Settings",
+      "description": "Set up your business email credentials and customize email templates."
+    },
+    {
+      "step": 4,
+      "title": "Setup Database",
+      "description": "Configure MongoDB or your database to track invoice status and payment history."
+    },
+    {
+      "step": 5,
+      "title": "Customize Follow-up Schedule",
+      "description": "Adjust the timing of payment reminders (currently 7 days and 22 days)."
+    },
+    {
+      "step": 6,
+      "title": "Setup Team Notifications",
+      "description": "Configure Slack alerts for overdue invoices to your accounting team."
+    }
+  ],
+  "requiredCredentials": [
+    "quickBooks",
+    "email",
+    "mongoDb",
+    "slack"
+  ],
+  "customization": {
+    "paymentTerms": {
+      "editable": true,
+      "description": "Adjust payment terms from 30 days to your preferred period"
+    },
+    "reminderSchedule": {
+      "editable": true,
+      "description": "Customize when reminders are sent (7 days, 22 days, etc.)"
+    },
+    "emailTemplates": {
+      "editable": true,
+      "description": "Customize all email templates with your branding and tone"
+    },
+    "overdueActions": {
+      "editable": true,
+      "description": "Configure additional actions for severely overdue invoices"
+    },
+    "paymentMethods": {
+      "editable": true,
+      "description": "Add links to your preferred payment processors"
+    }
+  }
+}

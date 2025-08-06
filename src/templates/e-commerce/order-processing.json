@@ -1,0 +1,327 @@
+{
+  "name": "E-commerce Order Processing",
+  "description": "Automate order fulfillment from payment confirmation to shipping notification and inventory updates",
+  "version": "1.0.0",
+  "category": "operations",
+  "industry": "e-commerce",
+  "complexity": "Advanced",
+  "estimatedTime": "45 min",
+  "businessImpact": {
+    "timeSaved": "15 hours/week",
+    "costReduction": "$5,000/month",
+    "errorReduction": "95%"
+  },
+  "tags": ["E-commerce", "Inventory", "Shipping", "Notifications", "Order Management"],
+  "workflow": {
+    "nodes": [
+      {
+        "parameters": {
+          "path": "/order-paid",
+          "httpMethod": "POST"
+        },
+        "id": "payment-webhook",
+        "name": "Payment Confirmed",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 1,
+        "position": [240, 300]
+      },
+      {
+        "parameters": {
+          "functionCode": "// Process order data from payment webhook\nconst orderData = items[0].json;\n\n// Validate order data\nif (!orderData.orderId || !orderData.customerEmail) {\n  throw new Error('Order ID and customer email are required');\n}\n\nconst processedOrder = {\n  orderId: orderData.orderId,\n  customerEmail: orderData.customerEmail,\n  customerName: orderData.customerName || 'Customer',\n  items: orderData.items || [],\n  totalAmount: orderData.totalAmount || 0,\n  shippingAddress: orderData.shippingAddress || {},\n  paymentStatus: 'confirmed',\n  orderStatus: 'processing',\n  orderDate: new Date().toISOString(),\n  trackingNumber: null\n};\n\nreturn [{ json: processedOrder }];"
+        },
+        "id": "process-order",
+        "name": "Process Order Data",
+        "type": "n8n-nodes-base.function",
+        "typeVersion": 1,
+        "position": [460, 300]
+      },
+      {
+        "parameters": {
+          "operation": "update",
+          "resource": "inventory",
+          "functionCode": "// Update inventory for each item\nconst order = items[0].json;\nconst inventoryUpdates = [];\n\nfor (const item of order.items) {\n  inventoryUpdates.push({\n    productId: item.productId,\n    sku: item.sku,\n    quantityOrdered: item.quantity,\n    action: 'decrease'\n  });\n}\n\nreturn inventoryUpdates.map(update => ({ json: update }));"
+        },
+        "id": "update-inventory",
+        "name": "Update Inventory",
+        "type": "n8n-nodes-base.function",
+        "typeVersion": 1,
+        "position": [680, 200]
+      },
+      {
+        "parameters": {
+          "functionCode": "// Check if all items are in stock\nconst order = items[0].json;\nlet allInStock = true;\nconst outOfStockItems = [];\n\nfor (const item of order.items) {\n  // Simulate inventory check (replace with actual inventory API call)\n  const availableStock = Math.floor(Math.random() * 100) + 10; // Simulate stock level\n  \n  if (availableStock < item.quantity) {\n    allInStock = false;\n    outOfStockItems.push({\n      ...item,\n      availableStock,\n      shortfall: item.quantity - availableStock\n    });\n  }\n}\n\nreturn [{\n  json: {\n    ...order,\n    allInStock,\n    outOfStockItems,\n    canFulfill: allInStock\n  }\n}];"
+        },
+        "id": "check-stock",
+        "name": "Check Stock Availability",
+        "type": "n8n-nodes-base.function",
+        "typeVersion": 1,
+        "position": [680, 400]
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "boolean": [
+              {
+                "value1": "={{$json[\"canFulfill\"]}}",
+                "value2": true
+              }
+            ]
+          }
+        },
+        "id": "stock-check",
+        "name": "Stock Available?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 1,
+        "position": [900, 400]
+      },
+      {
+        "parameters": {
+          "operation": "create",
+          "resource": "shipment",
+          "orderNumber": "={{$json[\"orderId\"]}}",
+          "toAddress": "={{$json[\"shippingAddress\"]}}",
+          "items": "={{$json[\"items\"]}}",
+          "serviceType": "standard"
+        },
+        "id": "create-shipment",
+        "name": "Create Shipment",
+        "type": "n8n-nodes-base.shippo",
+        "typeVersion": 1,
+        "position": [1120, 300]
+      },
+      {
+        "parameters": {
+          "subject": "Your order #{{$json[\"orderId\"]}} is being prepared!",
+          "message": "Hi {{$json[\"customerName\"]}},\n\nGreat news! Your order #{{$json[\"orderId\"]}} has been confirmed and is being prepared for shipment.\n\n**Order Details:**\n{{#each items}}\n- {{this.name}} (Qty: {{this.quantity}})\n{{/each}}\n\n**Total:** ${{$json[\"totalAmount\"]}}\n\nYou'll receive a tracking number once your order ships (usually within 1-2 business days).\n\nThanks for your order!\nThe Team",
+          "toEmail": "={{$json[\"customerEmail\"]}}",
+          "fromEmail": "orders@store.com"
+        },
+        "id": "order-confirmation-email",
+        "name": "Send Order Confirmation",
+        "type": "n8n-nodes-base.emailSend",
+        "typeVersion": 1,
+        "position": [1120, 500]
+      },
+      {
+        "parameters": {
+          "subject": "Order #{{$json[\"orderId\"]}} - Stock Issue",
+          "message": "Hi {{$json[\"customerName\"]}},\n\nWe're processing your order #{{$json[\"orderId\"]}}, but some items are currently out of stock:\n\n{{#each outOfStockItems}}\n- {{this.name}}: Ordered {{this.quantity}}, Available {{this.availableStock}}\n{{/each}}\n\nWe'll fulfill the available items and contact you about the remaining items within 24 hours.\n\nSorry for any inconvenience!\nThe Team",
+          "toEmail": "={{$json[\"customerEmail\"]}}",
+          "fromEmail": "orders@store.com"
+        },
+        "id": "backorder-email",
+        "name": "Send Backorder Notice",
+        "type": "n8n-nodes-base.emailSend",
+        "typeVersion": 1,
+        "position": [900, 600]
+      },
+      {
+        "parameters": {
+          "channel": "#fulfillment",
+          "message": "🚨 *Stock Alert for Order #{{$json[\"orderId\"]}}*\n\nCustomer: {{$json[\"customerName\"]}}\nEmail: {{$json[\"customerEmail\"]}}\n\n*Out of Stock Items:*\n{{#each outOfStockItems}}\n• {{this.name}} - Need {{this.shortfall}} more units\n{{/each}}\n\n*Action Required:* Contact supplier or update customer"
+        },
+        "id": "stock-alert",
+        "name": "Stock Alert to Team",
+        "type": "n8n-nodes-base.slack",
+        "typeVersion": 1,
+        "position": [1120, 700]
+      },
+      {
+        "parameters": {
+          "functionCode": "// Generate tracking information\nconst order = items[0].json;\nconst trackingNumber = 'TRK' + Date.now() + Math.floor(Math.random() * 1000);\n\nreturn [{\n  json: {\n    ...order,\n    trackingNumber,\n    shippedDate: new Date().toISOString(),\n    orderStatus: 'shipped',\n    estimatedDelivery: DateTime.now().plus({days: 3}).toISO()\n  }\n}];"
+        },
+        "id": "generate-tracking",
+        "name": "Generate Tracking",
+        "type": "n8n-nodes-base.function",
+        "typeVersion": 1,
+        "position": [1340, 300]
+      },
+      {
+        "parameters": {
+          "subject": "Your order #{{$json[\"orderId\"]}} has shipped! 📦",
+          "message": "Hi {{$json[\"customerName\"]}},\n\nExciting news! Your order #{{$json[\"orderId\"]}} has been shipped and is on its way to you.\n\n**Tracking Information:**\nTracking Number: {{$json[\"trackingNumber\"]}}\nEstimated Delivery: {{DateTime.fromISO($json[\"estimatedDelivery\"]).toFormat('MMMM dd, yyyy')}}\n\n**Shipping Address:**\n{{$json[\"shippingAddress\"].name}}\n{{$json[\"shippingAddress\"].address1}}\n{{$json[\"shippingAddress\"].city}}, {{$json[\"shippingAddress\"].state}} {{$json[\"shippingAddress\"].zip}}\n\nYou can track your package at: [Track Package](https://tracking.example.com/{{$json[\"trackingNumber\"]}})\n\nThanks for your business!\nThe Team",
+          "toEmail": "={{$json[\"customerEmail\"]}}",
+          "fromEmail": "shipping@store.com"
+        },
+        "id": "shipping-notification",
+        "name": "Send Shipping Notification",
+        "type": "n8n-nodes-base.emailSend",
+        "typeVersion": 1,
+        "position": [1560, 300]
+      },
+      {
+        "parameters": {
+          "operation": "update",
+          "collection": "orders",
+          "updateKey": "orderId",
+          "fieldsToUpdate": {
+            "orderStatus": "shipped",
+            "trackingNumber": "={{$json[\"trackingNumber\"]}}",
+            "shippedDate": "={{$json[\"shippedDate\"]}}",
+            "estimatedDelivery": "={{$json[\"estimatedDelivery\"]}}"
+          }
+        },
+        "id": "update-order-status",
+        "name": "Update Order Status",
+        "type": "n8n-nodes-base.mongoDb",
+        "typeVersion": 1,
+        "position": [1560, 500]
+      }
+    ],
+    "connections": {
+      "Payment Confirmed": {
+        "main": [
+          [
+            {
+              "node": "Process Order Data",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Process Order Data": {
+        "main": [
+          [
+            {
+              "node": "Update Inventory",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Check Stock Availability",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Check Stock Availability": {
+        "main": [
+          [
+            {
+              "node": "Stock Available?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Stock Available?": {
+        "main": [
+          [
+            {
+              "node": "Create Shipment",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Send Order Confirmation",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Send Backorder Notice",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Stock Alert to Team",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Create Shipment": {
+        "main": [
+          [
+            {
+              "node": "Generate Tracking",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Generate Tracking": {
+        "main": [
+          [
+            {
+              "node": "Send Shipping Notification",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Update Order Status",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    }
+  },
+  "setupInstructions": [
+    {
+      "step": 1,
+      "title": "Configure Payment Webhook",
+      "description": "Set up webhook in your payment processor (Stripe, PayPal, etc.) to trigger on successful payments."
+    },
+    {
+      "step": 2,
+      "title": "Setup Inventory System",
+      "description": "Connect to your inventory management system API to check and update stock levels."
+    },
+    {
+      "step": 3,
+      "title": "Configure Shipping Integration",
+      "description": "Set up Shippo or your preferred shipping provider for label creation and tracking."
+    },
+    {
+      "step": 4,
+      "title": "Setup Email Templates",
+      "description": "Customize order confirmation and shipping notification email templates."
+    },
+    {
+      "step": 5,
+      "title": "Configure Database",
+      "description": "Set up MongoDB or your preferred database to store and update order information."
+    },
+    {
+      "step": 6,
+      "title": "Setup Team Notifications",
+      "description": "Configure Slack alerts for stock issues and order fulfillment team."
+    }
+  ],
+  "requiredCredentials": [
+    "email",
+    "shippo",
+    "mongoDb",
+    "slack"
+  ],
+  "customization": {
+    "inventoryIntegration": {
+      "editable": true,
+      "description": "Replace inventory functions with your actual inventory system API calls"
+    },
+    "shippingProvider": {
+      "editable": true,
+      "description": "Configure your preferred shipping provider (FedEx, UPS, DHL, etc.)"
+    },
+    "emailTemplates": {
+      "editable": true,
+      "description": "Customize all email templates with your branding and content"
+    },
+    "stockThresholds": {
+      "editable": true,
+      "description": "Set minimum stock levels and reorder points"
+    },
+    "fulfillmentRules": {
+      "editable": true,
+      "description": "Configure rules for partial fulfillment and backorders"
+    }
+  }
+}

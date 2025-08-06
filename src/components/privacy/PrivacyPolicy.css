@@ -1,0 +1,193 @@
+.privacy-policy-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 2rem;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  line-height: 1.6;
+  color: #333;
+}
+
+.privacy-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10000;
+}
+
+.privacy-modal {
+  background: white;
+  border-radius: 8px;
+  width: 90vw;
+  max-width: 800px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.privacy-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem 2rem 1rem;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.privacy-header h2 {
+  margin: 0;
+  color: #2c3e50;
+  font-size: 1.5rem;
+}
+
+.privacy-close {
+  font-size: 2rem;
+  cursor: pointer;
+  color: #999;
+  line-height: 1;
+  padding: 0.25rem;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.privacy-close:hover {
+  color: #666;
+  background-color: #f5f5f5;
+}
+
+.privacy-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.5rem 2rem;
+}
+
+.privacy-section h3 {
+  color: #2c3e50;
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+  font-size: 1.3rem;
+  border-bottom: 2px solid #3498db;
+  padding-bottom: 0.5rem;
+}
+
+.privacy-section h4 {
+  color: #34495e;
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+  font-size: 1.1rem;
+}
+
+.privacy-section p {
+  margin-bottom: 1rem;
+  text-align: justify;
+}
+
+.privacy-section ul {
+  margin-bottom: 1rem;
+  padding-left: 1.5rem;
+}
+
+.privacy-section li {
+  margin-bottom: 0.5rem;
+}
+
+.privacy-section strong {
+  color: #2c3e50;
+  font-weight: 600;
+}
+
+.privacy-section em {
+  font-style: italic;
+  color: #666;
+}
+
+.privacy-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  padding: 1.5rem 2rem;
+  border-top: 1px solid #e0e0e0;
+  background-color: #f8f9fa;
+}
+
+.btn-accept,
+.btn-decline {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 4px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 120px;
+}
+
+.btn-accept {
+  background-color: #3498db;
+  color: white;
+}
+
+.btn-accept:hover {
+  background-color: #2980b9;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(52, 152, 219, 0.3);
+}
+
+.btn-decline {
+  background-color: #95a5a6;
+  color: white;
+}
+
+.btn-decline:hover {
+  background-color: #7f8c8d;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(149, 165, 166, 0.3);
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .privacy-modal {
+    width: 95vw;
+    margin: 1rem;
+  }
+  
+  .privacy-header,
+  .privacy-content,
+  .privacy-actions {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  
+  .privacy-actions {
+    flex-direction: column;
+  }
+  
+  .btn-accept,
+  .btn-decline {
+    width: 100%;
+  }
+}
+
+/* Print styles */
+@media print {
+  .privacy-modal-overlay {
+    position: static;
+    background: none;
+  }
+  
+  .privacy-modal {
+    width: 100%;
+    max-width: none;
+    max-height: none;
+    box-shadow: none;
+  }
+  
+  .privacy-actions {
+    display: none;
+  }
+}

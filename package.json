@@ -1,12 +1,14 @@
 {
   "name": "n8n-workflow-manager",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "dependencies": {
     "@emotion/react": "^11.11.1",
     "@emotion/styled": "^11.11.0",
     "@mui/icons-material": "^5.14.19",
     "@mui/material": "^5.14.20",
+    "@mui/x-charts": "^6.18.3",
+    "@mui/x-data-grid": "^6.18.3",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.3.0",
@@ -25,18 +27,98 @@
     "react-scripts": "5.0.1",
     "typescript": "^4.9.5",
     "web-vitals": "^2.1.4",
-    "zustand": "^4.4.7"
+    "zustand": "^4.4.7",
+    "recharts": "^2.8.0",
+    "date-fns": "^2.30.0",
+    "react-query": "^3.39.3",
+    "react-error-boundary": "^4.0.11",
+    "workbox-webpack-plugin": "^7.0.0",
+    "workbox-window": "^7.0.0"
+  },
+  "devDependencies": {
+    "@testing-library/cypress": "^10.0.1",
+    "@types/testing-library__cypress": "^5.0.9",
+    "cypress": "^13.6.0",
+    "cypress-real-events": "^1.11.0",
+    "cypress-axe": "^1.5.0",
+    "cypress-file-upload": "^5.0.8",
+    "start-server-and-test": "^2.0.3",
+    "eslint": "^8.55.0",
+    "@typescript-eslint/eslint-plugin": "^6.13.1",
+    "@typescript-eslint/parser": "^6.13.1",
+    "eslint-plugin-react": "^7.33.2",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "eslint-plugin-testing-library": "^6.2.0",
+    "eslint-plugin-cypress": "^2.15.1",
+    "prettier": "^3.1.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-prettier": "^5.0.1",
+    "husky": "^8.0.3",
+    "lint-staged": "^15.2.0",
+    "msw": "^2.0.11",
+    "@storybook/react": "^7.6.3",
+    "@storybook/addon-essentials": "^7.6.3",
+    "@storybook/addon-actions": "^7.6.3",
+    "@storybook/addon-links": "^7.6.3",
+    "jest-environment-jsdom": "^29.7.0",
+    "jest-axe": "^8.0.0",
+    "jest-extended": "^4.0.2"
   },
   "scripts": {
     "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "build": "react-scripts build && npm run build:service-worker",
+    "build:service-worker": "workbox generateSW",
+    "test": "react-scripts test --watchAll=false",
+    "test:watch": "react-scripts test",
+    "test:coverage": "react-scripts test --coverage --watchAll=false",
+    "test:ci": "CI=true npm run test:coverage",
+    "cypress:open": "cypress open",
+    "cypress:run": "cypress run",
+    "cypress:ci": "start-server-and-test start http://localhost:3000 cypress:run",
+    "eject": "react-scripts eject",
+    "lint": "eslint src --ext .ts,.tsx,.js,.jsx",
+    "lint:fix": "eslint src --ext .ts,.tsx,.js,.jsx --fix",
+    "format": "prettier --write src/**/*.{ts,tsx,js,jsx,json,css,md}",
+    "format:check": "prettier --check src/**/*.{ts,tsx,js,jsx,json,css,md}",
+    "type-check": "tsc --noEmit",
+    "validate": "npm run type-check && npm run lint && npm run test:ci",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build",
+    "analyze": "npm run build && npx bundle-analyzer build/static/js/*.js",
+    "prepare": "husky install"
   },
   "eslintConfig": {
     "extends": [
       "react-app",
-      "react-app/jest"
+      "react-app/jest",
+      "@typescript-eslint/recommended",
+      "plugin:testing-library/react",
+      "plugin:cypress/recommended",
+      "prettier"
+    ],
+    "plugins": ["@typescript-eslint", "testing-library", "cypress", "prettier"],
+    "rules": {
+      "prettier/prettier": "error",
+      "@typescript-eslint/no-unused-vars": "error",
+      "@typescript-eslint/explicit-function-return-type": "off",
+      "testing-library/await-async-query": "error",
+      "testing-library/no-await-sync-query": "error"
+    }
+  },
+  "prettier": {
+    "semi": true,
+    "trailingComma": "es5",
+    "singleQuote": true,
+    "printWidth": 80,
+    "tabWidth": 2
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,css,md}": [
+      "prettier --write"
     ]
   },
   "browserslist": {
@@ -50,5 +132,25 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "jest": {
+    "collectCoverageFrom": [
+      "src/**/*.{ts,tsx}",
+      "!src/**/*.d.ts",
+      "!src/index.tsx",
+      "!src/reportWebVitals.ts"
+    ],
+    "coverageThreshold": {
+      "global": {
+        "branches": 80,
+        "functions": 80,
+        "lines": 80,
+        "statements": 80
+      }
+    }
+  },
+  "workbox": {
+    "swSrc": "public/sw.js",
+    "swDest": "build/sw.js"
   }
 }
