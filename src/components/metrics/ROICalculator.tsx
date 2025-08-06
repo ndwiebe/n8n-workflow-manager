@@ -16,7 +16,7 @@ import {
   useMediaQuery
 } from '@mui/material';
 import {
-  Calculator as CalculatorIcon,
+  Calculate as CalculatorIcon,
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
   TrendingUp as TrendingUpIcon,
@@ -29,7 +29,7 @@ export const ROICalculator: React.FC = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(true);
   const [hoursPerWeek, setHoursPerWeek] = useState(10);
   const [hourlyRate, setHourlyRate] = useState(25);
   const [automationCount, setAutomationCount] = useState(3);
@@ -119,11 +119,23 @@ export const ROICalculator: React.FC = () => {
                     label="Hourly Rate ($)"
                     type="number"
                     value={hourlyRate}
-                    onChange={(e) => setHourlyRate(Number(e.target.value))}
+                    onChange={(e) => {
+                      const value = Math.max(10, Math.min(200, Number(e.target.value) || 10));
+                      setHourlyRate(value);
+                    }}
+                    onBlur={(e) => {
+                      const value = Math.max(10, Math.min(200, Number(e.target.value) || 10));
+                      setHourlyRate(value);
+                    }}
                     size="small"
                     InputProps={{
-                      inputProps: { min: 10, max: 200 }
+                      inputProps: { 
+                        min: 10, 
+                        max: 200,
+                        step: 5
+                      }
                     }}
+                    helperText="Range: $10 - $200 per hour"
                   />
                 </Box>
 
@@ -151,11 +163,23 @@ export const ROICalculator: React.FC = () => {
                     label="Implementation Cost ($)"
                     type="number"
                     value={implementationCost}
-                    onChange={(e) => setImplementationCost(Number(e.target.value))}
+                    onChange={(e) => {
+                      const value = Math.max(0, Math.min(10000, Number(e.target.value) || 0));
+                      setImplementationCost(value);
+                    }}
+                    onBlur={(e) => {
+                      const value = Math.max(0, Math.min(10000, Number(e.target.value) || 0));
+                      setImplementationCost(value);
+                    }}
                     size="small"
                     InputProps={{
-                      inputProps: { min: 0, max: 10000 }
+                      inputProps: { 
+                        min: 0, 
+                        max: 10000,
+                        step: 50
+                      }
                     }}
+                    helperText="One-time setup cost (optional)"
                   />
                 </Box>
               </Grid>
